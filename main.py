@@ -11,148 +11,69 @@ DOWNLOAD_URL = "https://www.uniexplorer.com.br/download/"
 WEBHOOK_BASE_URL = "https://uni-explorer-webhook.onrender.com"
 
 
-# ====================================================
-# ARQUIVOS DOS PACOTES
-# ====================================================
-
-PDFS = {
-
-    "bariloche-e-buenos-aires":
-        "Pacote Uni Explorer - Bariloche e Buenos Aires 7P.pdf",
-
-    "bonito-pantanal-e-foz":
-        "Pacote Uni Explorer - Bonito Pantanal e Foz 7P.pdf",
-
-    "buenos-aires-2p":
-        "Pacote Uni Explorer - Buenos aires 2P.pdf",
-
-    "buenos-aires-3p":
-        "Pacote Uni Explorer - Buenos aires 3P.pdf",
-
-    "chile-e-argentina":
-        "Pacote Uni Explorer - Chile e Argentina 8P.pdf",
-
-    "circuito-la-plata":
-        "Pacote Uni Explorer - Circuito La Plata 6P.pdf",
-
-    "machu-picchu":
-        "Pacote Uni Explorer - Machu Picchu 13P.pdf",
-
-    "montevideu-2p":
-        "Pacote Uni Explorer - Montevideu 2P.pdf",
-
-    "montevideu-3p":
-        "Pacote Uni Explorer - Montevideu 3P.pdf",
-
-    "pascoa-buenos-aires":
-        "Pacote Uni Explorer - Pascoa Buenos aires 2P.pdf",
-
-    "pascoa-ilha-do-mel":
-        "Pacote Uni Explorer - Pascoa Ilha do Mel 2P.pdf",
-
-    "pascoa-punta":
-        "Pacote uni Explorer - Pascoa Punta 2P.pdf",
-
-    "reveillon-punta":
-        "Pacote uni Explorer - Reveillon Punta 3P.pdf",
-
-    "tomorrowland":
-        "Pacote Uni Explorer - Tomorrowland 3P - RODO.pdf",
-
-    "ushuaia":
-        "Pacote Uni Explorer - Ushuaia 14P.pdf"
-}
-
-
-# ====================================================
-# PAGINA INICIAL
-# ====================================================
-
 @app.get("/")
 async def inicio():
-
     return {
         "status": "online",
-        "mensagem": "Webhook Uni Explorer funcionando!",
-        "pdfs_disponiveis": len(PDFS)
+        "mensagem": "Webhook Uni Explorer funcionando!"
     }
 
 
-# ====================================================
-# NORMALIZAÇÃO
-# ====================================================
-
 def normalizar(texto):
+    """
+    Remove diferenças de maiúsculas/minúsculas,
+    acentos e caracteres especiais.
+    """
 
     texto = unquote(texto)
     texto = texto.lower()
 
     substituicoes = {
-
         "á": "a",
         "à": "a",
         "ã": "a",
         "â": "a",
         "ä": "a",
-
         "é": "e",
         "è": "e",
         "ê": "e",
         "ë": "e",
-
         "í": "i",
         "ì": "i",
         "î": "i",
         "ï": "i",
-
         "ó": "o",
         "ò": "o",
         "õ": "o",
         "ô": "o",
         "ö": "o",
-
         "ú": "u",
         "ù": "u",
         "û": "u",
         "ü": "u",
-
         "ç": "c"
     }
 
     for antigo, novo in substituicoes.items():
+        texto = texto.replace(antigo, novo)
 
-        texto = texto.replace(
-            antigo,
-            novo
-        )
-
-    texto = re.sub(
-        r"[^a-z0-9\s]",
-        " ",
-        texto
-    )
-
-    texto = re.sub(
-        r"\s+",
-        " ",
-        texto
-    ).strip()
+    texto = re.sub(r"[^a-z0-9\s]", " ", texto)
+    texto = re.sub(r"\s+", " ", texto).strip()
 
     return texto
 
 
-# ====================================================
-# BUSCAR PDF NA PÁGINA DE DOWNLOADS
-# ====================================================
-
 def buscar_pdf(destino):
+    """
+    Consulta a página /download/ e procura
+    o PDF correspondente ao destino informado.
+    """
 
     print("================================")
     print("CONSULTANDO PAGINA DE DOWNLOADS")
     print("Destino recebido:", destino)
 
     try:
-
         resposta = requests.get(
             DOWNLOAD_URL,
             timeout=15,
@@ -164,136 +85,69 @@ def buscar_pdf(destino):
         resposta.raise_for_status()
 
     except Exception as erro:
-
-        print(
-            "ERRO AO ACESSAR PAGINA:",
-            erro
-        )
-
+        print("ERRO AO ACESSAR PAGINA:", erro)
         return None
 
-    soup = BeautifulSoup(
-        resposta.text,
-        "html.parser"
-    )
+    soup = BeautifulSoup(resposta.text, "html.parser")
 
     arquivos = []
 
-    for link in soup.find_all(
-        "a",
-        href=True
-    ):
+    for link in soup.find_all("a", href=True):
 
         href = link.get("href")
-
-        nome = link.get_text(
-            " ",
-            strip=True
-        )
+        nome = link.get_text(" ", strip=True)
 
         if not nome:
+            nome = unquote(href.split("/")[-1])
 
-            nome = unquote(
-                href.split("/")[-1]
-            )
+        if ".pdf" in nome.lower() or ".pdf" in href.lower():
 
-        if (
-            ".pdf" in nome.lower()
-            or
-            ".pdf" in href.lower()
-        ):
-
-            url_pdf = urljoin(
-                DOWNLOAD_URL,
-                href
-            )
+            url_pdf = urljoin(DOWNLOAD_URL, href)
 
             arquivos.append({
                 "nome": nome,
                 "url": url_pdf
             })
 
-    print(
-        "PDFs encontrados:",
-        len(arquivos)
-    )
+    print("PDFs encontrados:", len(arquivos))
 
     if not arquivos:
-
-        print(
-            "NENHUM PDF ENCONTRADO"
-        )
-
+        print("NENHUM PDF ENCONTRADO")
         return None
 
-    destino_normalizado = normalizar(
-        destino
-    )
+    destino_normalizado = normalizar(destino)
 
-    print(
-        "Destino normalizado:",
-        destino_normalizado
-    )
+    print("Destino normalizado:", destino_normalizado)
 
-    # ==================================================
-    # CHILE
-    # ==================================================
-
+    # "Chile" representa o PDF "Chile e Argentina"
     if destino_normalizado == "chile":
-
         termos_busca = [
             "chile e argentina",
             "chile argentina"
         ]
-
     else:
+        termos_busca = [destino_normalizado]
 
-        termos_busca = [
-            destino_normalizado
-        ]
-
-    # ==================================================
-    # CORRESPONDÊNCIA DIRETA
-    # ==================================================
-
+    # PRIMEIRA TENTATIVA: correspondência direta
     for arquivo in arquivos:
 
-        nome_normalizado = normalizar(
-            arquivo["nome"]
-        )
+        nome_normalizado = normalizar(arquivo["nome"])
 
         for termo in termos_busca:
 
             if termo in nome_normalizado:
 
-                print(
-                    "PDF ENCONTRADO!"
-                )
-
-                print(
-                    "Nome:",
-                    arquivo["nome"]
-                )
-
-                print(
-                    "URL:",
-                    arquivo["url"]
-                )
-
-                print(
-                    "================================"
-                )
+                print("PDF ENCONTRADO!")
+                print("Nome:", arquivo["nome"])
+                print("URL:", arquivo["url"])
+                print("================================")
 
                 return arquivo
 
-    # ==================================================
-    # CORRESPONDÊNCIA POR PALAVRAS
-    # ==================================================
-
+    # SEGUNDA TENTATIVA: comparação por palavras
     palavras = destino_normalizado.split()
 
     palavras_ignoradas = {
-
         "pacote",
         "uni",
         "explorer",
@@ -306,11 +160,8 @@ def buscar_pdf(destino):
     }
 
     palavras = [
-
         palavra
-
         for palavra in palavras
-
         if palavra not in palavras_ignoradas
     ]
 
@@ -319,129 +170,70 @@ def buscar_pdf(destino):
 
     for arquivo in arquivos:
 
-        nome_normalizado = normalizar(
-            arquivo["nome"]
-        )
+        nome_normalizado = normalizar(arquivo["nome"])
 
         pontuacao = 0
 
         for palavra in palavras:
 
             if palavra in nome_normalizado:
-
                 pontuacao += 1
 
         if pontuacao > melhor_pontuacao:
 
             melhor_pontuacao = pontuacao
-
             melhor_arquivo = arquivo
 
-    if (
-        melhor_arquivo
-        and
-        melhor_pontuacao > 0
-    ):
+    if melhor_arquivo and melhor_pontuacao > 0:
 
-        print(
-            "PDF ENCONTRADO POR SIMILARIDADE!"
-        )
-
-        print(
-            "Nome:",
-            melhor_arquivo["nome"]
-        )
-
-        print(
-            "URL:",
-            melhor_arquivo["url"]
-        )
-
-        print(
-            "Pontuação:",
-            melhor_pontuacao
-        )
-
-        print(
-            "================================"
-        )
+        print("PDF ENCONTRADO POR SIMILARIDADE!")
+        print("Nome:", melhor_arquivo["nome"])
+        print("URL:", melhor_arquivo["url"])
+        print("Pontuação:", melhor_pontuacao)
+        print("================================")
 
         return melhor_arquivo
 
-    print(
-        "NENHUM PDF COMPATIVEL ENCONTRADO"
-    )
-
-    print(
-        "================================"
-    )
+    print("NENHUM PDF COMPATIVEL ENCONTRADO")
+    print("================================")
 
     return None
 
 
-# ====================================================
-# WEBHOOK DO LEADCHAT
-# ====================================================
-
+# ROTA PRINCIPAL DO WEBHOOK
 @app.post("/webhook")
 async def webhook(request: Request):
 
     dados = await request.json()
 
     print("================================")
-    print(
-        "DADOS RECEBIDOS DO LEADCHAT:"
-    )
-
+    print("DADOS RECEBIDOS DO LEADCHAT:")
     print(dados)
+    print("================================")
 
-    print(
-        "================================"
-    )
+    destino = dados.get("lastContactMessage")
 
-    destino = dados.get(
-        "lastContactMessage"
-    )
-
-    print(
-        "DESTINO IDENTIFICADO:",
-        destino
-    )
+    print("DESTINO IDENTIFICADO:", destino)
 
     if not destino:
 
         return {
-
             "response": "ERRO",
-
             "messages": [
-
                 {
-                    "text":
-                    "Não consegui identificar "
-                    "o destino escolhido."
+                    "text": "Não consegui identificar o destino escolhido."
                 }
-
             ]
         }
 
-    pdf = buscar_pdf(
-        destino
-    )
+    # Procura o PDF
+    pdf = buscar_pdf(destino)
 
     if pdf:
 
-        print(
-            "PDF ORIGINAL:"
-        )
-
-        print(
-            pdf["nome"]
-        )
-
-        print(
-            pdf["url"]
-        )
+        print("PDF ORIGINAL:")
+        print(pdf["nome"])
+        print(pdf["url"])
 
         nome_codificado = quote(
             pdf["nome"],
@@ -449,270 +241,72 @@ async def webhook(request: Request):
         )
 
         url_pdf_webhook = (
-
-            f"{WEBHOOK_BASE_URL}"
-            f"/pdf/{nome_codificado}"
-
+            f"{WEBHOOK_BASE_URL}/pdf/{nome_codificado}"
         )
 
-        print(
-            "URL DO PDF PELO WEBHOOK:"
-        )
+        print("URL DO PDF PELO WEBHOOK:")
+        print(url_pdf_webhook)
 
-        print(
-            url_pdf_webhook
-        )
-
-        print(
-            "================================"
-        )
+        print("================================")
 
         return {
-
             "response": "SUCESSO",
-
             "messages": [
-
                 {
-                    "text":
-                    f"Segue o material de {destino}:"
+                    "text": f"Segue o material de {destino}:"
                 },
-
                 {
-                    "fileUrl":
-                    url_pdf_webhook,
-
-                    "fileName":
-                    pdf["nome"]
+                    "fileUrl": url_pdf_webhook,
+                    "fileName": pdf["nome"]
                 }
-
             ]
         }
 
     return {
-
         "response": "ERRO",
-
         "messages": [
-
             {
-
-                "text":
-                (
+                "text": (
                     f"Destino identificado: {destino}\n\n"
                     "Não encontrei um PDF correspondente "
                     "na página de downloads."
                 )
-
             }
-
         ]
     }
 
 
-# ====================================================
-# NOVOS HOOKS POR NOME DO PACOTE
-# ====================================================
-
-@app.get("/arquivo/{codigo}")
-async def arquivo_por_codigo(
-    codigo: str
-):
-
-    codigo = unquote(
-        codigo
-    ).lower().strip()
-
-    print("================================")
-    print(
-        "SOLICITAÇÃO POR CÓDIGO"
-    )
-
-    print(
-        "Código:",
-        codigo
-    )
-
-    if codigo not in PDFS:
-
-        print(
-            "CÓDIGO NÃO ENCONTRADO"
-        )
-
-        return {
-
-            "erro":
-            "PDF não encontrado.",
-
-            "codigo":
-            codigo,
-
-            "codigos_disponiveis":
-            list(PDFS.keys())
-        }
-
-    nome_arquivo = PDFS[
-        codigo
-    ]
-
-    url_original = urljoin(
-        DOWNLOAD_URL,
-        quote(
-            nome_arquivo
-        )
-    )
-
-    print(
-        "PDF:",
-        nome_arquivo
-    )
-
-    print(
-        "URL ORIGINAL:",
-        url_original
-    )
-
-    try:
-
-        resposta = requests.get(
-
-            url_original,
-
-            timeout=30,
-
-            headers={
-                "User-Agent":
-                "Mozilla/5.0"
-            }
-        )
-
-        resposta.raise_for_status()
-
-    except Exception as erro:
-
-        print(
-            "ERRO AO BAIXAR PDF:"
-        )
-
-        print(
-            erro
-        )
-
-        return {
-
-            "erro":
-            "Não foi possível baixar o PDF.",
-
-            "detalhes":
-            str(erro)
-        }
-
-    print(
-        "PDF BAIXADO COM SUCESSO"
-    )
-
-    print(
-        "Tamanho:",
-        len(resposta.content),
-        "bytes"
-    )
-
-    print(
-        "Nome:",
-        nome_arquivo
-    )
-
-    print(
-        "================================"
-    )
-
-    return Response(
-
-        content=resposta.content,
-
-        media_type="application/pdf",
-
-        headers={
-
-            "Content-Disposition":
-            (
-                f'attachment; '
-                f'filename="{nome_arquivo}"'
-            ),
-
-            "Content-Length":
-            str(
-                len(
-                    resposta.content
-                )
-            )
-        }
-    )
-
-
-# ====================================================
-# ROTA PDF ORIGINAL
-# ====================================================
-
+# ROTA DINÂMICA PARA ENTREGAR O PDF
 @app.get("/pdf/{nome_arquivo:path}")
-async def entregar_pdf(
-    nome_arquivo: str
-):
+async def entregar_pdf(nome_arquivo: str):
 
-    nome_arquivo = unquote(
-        nome_arquivo
-    )
+    nome_arquivo = unquote(nome_arquivo)
 
     print("================================")
+    print("SOLICITAÇÃO DE PDF")
+    print("Arquivo solicitado:", nome_arquivo)
 
-    print(
-        "SOLICITAÇÃO DE PDF"
-    )
-
-    print(
-        "Arquivo solicitado:",
-        nome_arquivo
-    )
-
-    if not nome_arquivo.lower().endswith(
-        ".pdf"
-    ):
+    if not nome_arquivo.lower().endswith(".pdf"):
 
         return {
-
-            "erro":
-            "Arquivo inválido. "
-            "Apenas PDFs são permitidos."
+            "erro": "Arquivo inválido. Apenas PDFs são permitidos."
         }
 
     url_original = urljoin(
-
         DOWNLOAD_URL,
-
-        quote(
-            nome_arquivo
-        )
+        quote(nome_arquivo)
     )
 
-    print(
-        "BAIXANDO PDF ORIGINAL:"
-    )
-
-    print(
-        url_original
-    )
+    print("BAIXANDO PDF ORIGINAL:")
+    print(url_original)
 
     try:
 
         resposta = requests.get(
-
             url_original,
-
             timeout=30,
-
             headers={
-                "User-Agent":
-                "Mozilla/5.0"
+                "User-Agent": "Mozilla/5.0"
             }
         )
 
@@ -720,108 +314,201 @@ async def entregar_pdf(
 
     except Exception as erro:
 
-        print(
-            "ERRO AO BAIXAR PDF:"
-        )
-
-        print(
-            erro
-        )
+        print("ERRO AO BAIXAR PDF:")
+        print(erro)
 
         return {
-
-            "erro":
-            "Não foi possível baixar o PDF.",
-
-            "detalhes":
-            str(erro)
+            "erro": "Não foi possível baixar o PDF.",
+            "detalhes": str(erro)
         }
 
-    print(
-        "PDF BAIXADO COM SUCESSO"
-    )
-
-    print(
-        "Tamanho:",
-        len(resposta.content),
-        "bytes"
-    )
-
-    print(
-        "Nome final:",
-        nome_arquivo
-    )
-
-    print(
-        "================================"
-    )
+    print("PDF BAIXADO COM SUCESSO")
+    print("Tamanho:", len(resposta.content), "bytes")
+    print("Nome final:", nome_arquivo)
+    print("================================")
 
     return Response(
-
         content=resposta.content,
-
         media_type="application/pdf",
-
         headers={
-
-            "Content-Disposition":
-            (
-                f'attachment; '
-                f'filename="{nome_arquivo}"'
-            ),
-
-            "Content-Length":
-            str(
-                len(
-                    resposta.content
-                )
+            "Content-Disposition": (
+                f'attachment; filename="{nome_arquivo}"'
             )
         }
     )
 
 
-# ====================================================
-# ROTA DE TESTE
-# ====================================================
+# ROTA /arquivo
+# Aceita GET e POST para compatibilidade com o LeadChat
+@app.api_route(
+    "/arquivo/{codigo}",
+    methods=["GET", "POST"]
+)
+async def arquivo_por_codigo(codigo: str):
 
+    codigo_normalizado = normalizar(codigo)
+
+    mapa_arquivos = {
+
+        "chile-e-argentina": (
+            "Pacote Uni Explorer - Chile e Argentina 8P.pdf"
+        ),
+
+        "chile-argentina": (
+            "Pacote Uni Explorer - Chile e Argentina 8P.pdf"
+        ),
+
+        "machu-picchu": (
+            "Pacote Uni Explorer - Machu Picchu 13P.pdf"
+        ),
+
+        "bariloche-e-buenos-aires": (
+            "Pacote Uni Explorer - Bariloche e Buenos Aires 7P.pdf"
+        ),
+
+        "bariloche-buenos-aires": (
+            "Pacote Uni Explorer - Bariloche e Buenos Aires 7P.pdf"
+        ),
+
+        "bonito-pantanal-e-foz": (
+            "Pacote Uni Explorer - Bonito Pantanal e Foz 7P.pdf"
+        ),
+
+        "bonito": (
+            "Pacote Uni Explorer - Bonito Pantanal e Foz 7P.pdf"
+        ),
+
+        "buenos-aires-2p": (
+            "Pacote Uni Explorer - Buenos aires 2P.pdf"
+        ),
+
+        "buenos-aires-3p": (
+            "Pacote Uni Explorer - Buenos aires 3P.pdf"
+        ),
+
+        "circuito-la-plata": (
+            "Pacote Uni Explorer - Circuito La Plata 6P.pdf"
+        ),
+
+        "montevideu-2p": (
+            "Pacote Uni Explorer - Montevideu 2P.pdf"
+        ),
+
+        "montevideu-3p": (
+            "Pacote Uni Explorer - Montevideu 3P.pdf"
+        ),
+
+        "pascoa-buenos-aires": (
+            "Pacote Uni Explorer - Pascoa Buenos aires 2P.pdf"
+        ),
+
+        "pascoa-ilha-do-mel": (
+            "Pacote Uni Explorer - Pascoa Ilha do Mel 2P.pdf"
+        ),
+
+        "pascoa-punta": (
+            "Pacote uni Explorer - Pascoa Punta 2P.pdf"
+        ),
+
+        "reveillon-punta": (
+            "Pacote uni Explorer - Reveillon Punta 3P.pdf"
+        ),
+
+        "tomorrowland": (
+            "Pacote Uni Explorer - Tomorrowland 3P - RODO.pdf"
+        ),
+
+        "ushuaia": (
+            "Pacote Uni Explorer - Ushuaia 14P.pdf"
+        )
+    }
+
+    nome_arquivo = mapa_arquivos.get(codigo_normalizado)
+
+    if not nome_arquivo:
+
+        print("CÓDIGO NÃO ENCONTRADO:", codigo)
+
+        return {
+            "erro": "Código de arquivo não encontrado.",
+            "codigo": codigo
+        }
+
+    print("================================")
+    print("SOLICITAÇÃO POR CÓDIGO")
+    print("Código:", codigo)
+    print("PDF:", nome_arquivo)
+
+    url_original = urljoin(
+        DOWNLOAD_URL,
+        quote(nome_arquivo)
+    )
+
+    print("URL ORIGINAL:")
+    print(url_original)
+
+    try:
+
+        resposta = requests.get(
+            url_original,
+            timeout=30,
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            }
+        )
+
+        resposta.raise_for_status()
+
+    except Exception as erro:
+
+        print("ERRO AO BAIXAR PDF:")
+        print(erro)
+
+        return {
+            "erro": "Não foi possível baixar o PDF.",
+            "detalhes": str(erro)
+        }
+
+    print("PDF BAIXADO COM SUCESSO")
+    print("Tamanho:", len(resposta.content), "bytes")
+    print("Nome:", nome_arquivo)
+    print("================================")
+
+    return Response(
+        content=resposta.content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{nome_arquivo}"'
+            )
+        }
+    )
+
+
+# ROTA DE TESTE
 @app.get("/pdf-teste")
 async def pdf_teste():
 
     url_pdf = (
-
         "https://www.uniexplorer.com.br/download/"
-
-        "Pacote%20Uni%20Explorer%20-%20"
-        "Machu%20Picchu%2013P.pdf"
+        "Pacote%20Uni%20Explorer%20-%20Machu%20Picchu%2013P.pdf"
     )
 
     nome_arquivo = (
-        "Pacote Uni Explorer - "
-        "Machu Picchu 13P.pdf"
+        "Pacote Uni Explorer - Machu Picchu 13P.pdf"
     )
 
     print("================================")
-
-    print(
-        "TESTE DE PDF"
-    )
-
-    print(
-        "URL:",
-        url_pdf
-    )
+    print("TESTE DE PDF")
+    print("URL:", url_pdf)
 
     try:
 
         resposta = requests.get(
-
             url_pdf,
-
             timeout=30,
-
             headers={
-                "User-Agent":
-                "Mozilla/5.0"
+                "User-Agent": "Mozilla/5.0"
             }
         )
 
@@ -830,29 +517,15 @@ async def pdf_teste():
     except Exception as erro:
 
         return {
-            "erro":
-            str(erro)
+            "erro": str(erro)
         }
 
     return Response(
-
         content=resposta.content,
-
         media_type="application/pdf",
-
         headers={
-
-            "Content-Disposition":
-            (
-                f'attachment; '
-                f'filename="{nome_arquivo}"'
-            ),
-
-            "Content-Length":
-            str(
-                len(
-                    resposta.content
-                )
+            "Content-Disposition": (
+                f'attachment; filename="{nome_arquivo}"'
             )
         }
     )
