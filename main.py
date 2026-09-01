@@ -229,7 +229,6 @@ async def webhook(request: Request):
             ]
         }
 
-    # Procura o PDF
     pdf = buscar_pdf(destino)
 
     if pdf:
@@ -280,7 +279,7 @@ async def webhook(request: Request):
 
 
 # ============================================================
-# ROTA PARA ENTREGA DIRETA DO PDF
+# ROTA PARA ENTREGA DO PDF
 # ============================================================
 
 @app.get("/pdf/{nome_arquivo:path}")
@@ -346,7 +345,12 @@ async def entregar_pdf(nome_arquivo: str):
 
 # ============================================================
 # ROTA /ARQUIVO
-# ACEITA GET E POST
+#
+# POST e GET são aceitos.
+#
+# IMPORTANTE:
+# Esta rota NÃO entrega mais o PDF diretamente.
+# Ela retorna JSON com a URL do PDF.
 # ============================================================
 
 @app.api_route(
@@ -355,24 +359,12 @@ async def entregar_pdf(nome_arquivo: str):
 )
 async def arquivo_por_codigo(codigo: str):
 
-    # IMPORTANTE:
-    # normalizar transforma:
-    # machu-picchu -> machu picchu
-    # chile-e-argentina -> chile e argentina
-
     codigo_normalizado = normalizar(codigo)
 
     print("================================")
     print("SOLICITAÇÃO POR CÓDIGO")
     print("Código recebido:", codigo)
     print("Código normalizado:", codigo_normalizado)
-
-    # ========================================================
-    # MAPA DE CÓDIGOS
-    #
-    # As chaves usam o mesmo formato produzido pelo
-    # normalizar(), ou seja, com espaços.
-    # ========================================================
 
     mapa_arquivos = {
 
@@ -458,60 +450,58 @@ async def arquivo_por_codigo(codigo: str):
         print("================================")
 
         return {
-            "erro": "Código de arquivo não encontrado.",
-            "codigo": codigo
+            "response": "ERRO",
+            "messages": [
+                {
+                    "text": (
+                        f"Não encontrei um arquivo para o código "
+                        f"{codigo}."
+                    )
+                }
+            ]
         }
 
     print("PDF:", nome_arquivo)
 
-    url_original = urljoin(
-        DOWNLOAD_URL,
-        quote(nome_arquivo)
+    # Codifica o nome do arquivo para ser utilizado na URL
+    nome_codificado = quote(
+        nome_arquivo,
+        safe=""
     )
 
-    print("URL ORIGINAL:")
-    print(url_original)
+    url_pdf_webhook = (
+        f"{WEBHOOK_BASE_URL}/pdf/{nome_codificado}"
+    )
 
-    try:
+    print("URL DO PDF:")
+    print(url_pdf_webhook)
 
-        resposta = requests.get(
-            url_original,
-            timeout=30,
-            headers={
-                "User-Agent": "Mozilla/5.0"
-            }
-        )
-
-        resposta.raise_for_status()
-
-    except Exception as erro:
-
-        print("ERRO AO BAIXAR PDF:")
-        print(erro)
-
-        return {
-            "erro": "Não foi possível baixar o PDF.",
-            "detalhes": str(erro)
-        }
-
-    print("PDF BAIXADO COM SUCESSO")
-    print("Tamanho:", len(resposta.content), "bytes")
-    print("Nome:", nome_arquivo)
     print("================================")
 
-    return Response(
-        content=resposta.content,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": (
-                f'attachment; filename="{nome_arquivo}"'
-            )
-        }
-    )
+    # IMPORTANTE:
+    # Aqui NÃO baixamos o PDF.
+    #
+    # Apenas informamos ao LeadChat onde ele pode
+    # buscar o arquivo.
+    #
+    # O LeadChat deverá acessar essa URL usando GET.
+
+    return {
+        "response": "SUCESSO",
+        "messages": [
+            {
+                "text": "Segue o material solicitado:"
+            },
+            {
+                "fileUrl": url_pdf_webhook,
+                "fileName": nome_arquivo
+            }
+        ]
+    }
 
 
 # ============================================================
-# ROTA DE TESTE
+# ROTA DE TESTE DO PDF
 # ============================================================
 
 @app.get("/pdf-teste")
