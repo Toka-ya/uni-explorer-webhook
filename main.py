@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import Response
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, unquote
@@ -18,11 +19,6 @@ async def inicio():
 
 
 def normalizar(texto):
-    """
-    Remove diferenças de maiúsculas/minúsculas,
-    acentos e caracteres especiais.
-    """
-
     texto = unquote(texto)
     texto = texto.lower()
 
@@ -62,10 +58,6 @@ def normalizar(texto):
 
 
 def buscar_pdf(destino):
-    """
-    Consulta a página /download/ e procura
-    o PDF correspondente ao destino informado.
-    """
 
     print("================================")
     print("CONSULTANDO PAGINA DE DOWNLOADS")
@@ -90,14 +82,11 @@ def buscar_pdf(destino):
 
     arquivos = []
 
-    # Procura todos os links da página
     for link in soup.find_all("a", href=True):
 
         href = link.get("href")
         nome = link.get_text(" ", strip=True)
 
-        # Caso o texto do link esteja vazio,
-        # usa o nome do arquivo na URL
         if not nome:
             nome = unquote(href.split("/")[-1])
 
@@ -120,11 +109,6 @@ def buscar_pdf(destino):
 
     print("Destino normalizado:", destino_normalizado)
 
-    # ================================================
-    # REGRAS ESPECIAIS
-    # ================================================
-
-    # Chile também representa Chile e Argentina
     if destino_normalizado == "chile":
         termos_busca = [
             "chile e argentina",
@@ -132,11 +116,6 @@ def buscar_pdf(destino):
         ]
     else:
         termos_busca = [destino_normalizado]
-
-    # ================================================
-    # PRIMEIRA TENTATIVA:
-    # correspondência direta
-    # ================================================
 
     for arquivo in arquivos:
 
@@ -152,11 +131,6 @@ def buscar_pdf(destino):
                 print("================================")
 
                 return arquivo
-
-    # ================================================
-    # SEGUNDA TENTATIVA:
-    # comparação por palavras
-    # ================================================
 
     palavras = destino_normalizado.split()
 
@@ -223,7 +197,6 @@ async def webhook(request: Request):
     print(dados)
     print("================================")
 
-    # Captura a resposta escolhida pelo cliente
     destino = dados.get("lastContactMessage")
 
     print("DESTINO IDENTIFICADO:", destino)
@@ -239,12 +212,11 @@ async def webhook(request: Request):
             ]
         }
 
-    # Procura o PDF
     pdf = buscar_pdf(destino)
 
     if pdf:
 
-        print("ENVIANDO RESPOSTA COM PDF:")
+        print("ENVIANDO PDF:")
         print(pdf["nome"])
         print(pdf["url"])
 
@@ -273,3 +245,41 @@ async def webhook(request: Request):
             }
         ]
     }
+
+
+@app.get("/pdf-teste")
+async def pdf_teste():
+
+    url_pdf = (
+        "https://www.uniexplorer.com.br/download/"
+        "Pacote%20Uni%20Explorer%20-%20Machu%20Picchu%2013P.pdf"
+    )
+
+    try:
+
+        resposta = requests.get(
+            url_pdf,
+            timeout=30,
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            }
+        )
+
+        resposta.raise_for_status()
+
+    except Exception as erro:
+
+        return {
+            "erro": str(erro)
+        }
+
+    return Response(
+        content=resposta.content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                'attachment; '
+                'filename="Pacote Uni Explorer - Machu Picchu 13P.pdf"'
+            )
+        }
+    )
