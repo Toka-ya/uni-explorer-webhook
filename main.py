@@ -248,7 +248,8 @@ async def webhook(request: Request):
                 "text": f"Segue o material de {destino}:"
             },
             {
-                "fileUrl": pdf["url"]
+                "fileUrl": pdf["url"],
+                "fileName": pdf["nome"]
             }
         ]
     }
