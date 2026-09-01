@@ -2,12 +2,13 @@ from fastapi import FastAPI, Request
 from fastapi.responses import Response
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, unquote
+from urllib.parse import urljoin, unquote, quote
 import re
 
 app = FastAPI()
 
 DOWNLOAD_URL = "https://www.uniexplorer.com.br/download/"
+WEBHOOK_BASE_URL = "https://uni-explorer-webhook.onrender.com"
 
 
 @app.get("/")
@@ -19,6 +20,11 @@ async def inicio():
 
 
 def normalizar(texto):
+    """
+    Remove diferenças de maiúsculas/minúsculas,
+    acentos e caracteres especiais.
+    """
+
     texto = unquote(texto)
     texto = texto.lower()
 
@@ -58,6 +64,10 @@ def normalizar(texto):
 
 
 def buscar_pdf(destino):
+    """
+    Consulta a página /download/ e procura
+    o PDF correspondente ao destino informado.
+    """
 
     print("================================")
     print("CONSULTANDO PAGINA DE DOWNLOADS")
@@ -109,6 +119,11 @@ def buscar_pdf(destino):
 
     print("Destino normalizado:", destino_normalizado)
 
+    # ================================================
+    # REGRAS ESPECIAIS
+    # ================================================
+
+    # "Chile" representa o PDF "Chile e Argentina"
     if destino_normalizado == "chile":
         termos_busca = [
             "chile e argentina",
@@ -116,6 +131,11 @@ def buscar_pdf(destino):
         ]
     else:
         termos_busca = [destino_normalizado]
+
+    # ================================================
+    # PRIMEIRA TENTATIVA:
+    # correspondência direta
+    # ================================================
 
     for arquivo in arquivos:
 
@@ -131,6 +151,11 @@ def buscar_pdf(destino):
                 print("================================")
 
                 return arquivo
+
+    # ================================================
+    # SEGUNDA TENTATIVA:
+    # comparação por palavras
+    # ================================================
 
     palavras = destino_normalizado.split()
 
@@ -187,6 +212,10 @@ def buscar_pdf(destino):
     return None
 
 
+# ====================================================
+# ROTA PRINCIPAL
+# ====================================================
+
 @app.post("/webhook")
 async def webhook(request: Request):
 
@@ -212,13 +241,32 @@ async def webhook(request: Request):
             ]
         }
 
+    # Procura o PDF
     pdf = buscar_pdf(destino)
 
     if pdf:
 
-        print("ENVIANDO PDF:")
+        print("PDF ORIGINAL:")
         print(pdf["nome"])
         print(pdf["url"])
+
+        # Cria uma URL do nosso próprio servidor.
+        #
+        # quote() transforma espaços, acentos etc.
+        # em uma URL segura.
+        nome_codificado = quote(
+            pdf["nome"],
+            safe=""
+        )
+
+        url_pdf_webhook = (
+            f"{WEBHOOK_BASE_URL}/pdf/{nome_codificado}"
+        )
+
+        print("URL DO PDF PELO WEBHOOK:")
+        print(url_pdf_webhook)
+
+        print("================================")
 
         return {
             "response": "SUCESSO",
@@ -227,7 +275,7 @@ async def webhook(request: Request):
                     "text": f"Segue o material de {destino}:"
                 },
                 {
-                    "fileUrl": pdf["url"],
+                    "fileUrl": url_pdf_webhook,
                     "fileName": pdf["nome"]
                 }
             ]
@@ -247,6 +295,80 @@ async def webhook(request: Request):
     }
 
 
+# ====================================================
+# ROTA DINÂMICA PARA ENTREGAR O PDF
+# ====================================================
+
+@app.get("/pdf/{nome_arquivo:path}")
+async def entregar_pdf(nome_arquivo: str):
+
+    # Decodifica o nome recebido pela URL
+    nome_arquivo = unquote(nome_arquivo)
+
+    print("================================")
+    print("SOLICITAÇÃO DE PDF")
+    print("Arquivo solicitado:", nome_arquivo)
+
+    # Segurança básica:
+    # somente arquivos PDF podem ser entregues.
+    if not nome_arquivo.lower().endswith(".pdf"):
+
+        return {
+            "erro": "Arquivo inválido. Apenas PDFs são permitidos."
+        }
+
+    # Monta a URL original no site da Uni Explorer
+    url_original = urljoin(
+        DOWNLOAD_URL,
+        quote(nome_arquivo)
+    )
+
+    print("BAIXANDO PDF ORIGINAL:")
+    print(url_original)
+
+    try:
+
+        resposta = requests.get(
+            url_original,
+            timeout=30,
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            }
+        )
+
+        resposta.raise_for_status()
+
+    except Exception as erro:
+
+        print("ERRO AO BAIXAR PDF:")
+        print(erro)
+
+        return {
+            "erro": "Não foi possível baixar o PDF.",
+            "detalhes": str(erro)
+        }
+
+    print("PDF BAIXADO COM SUCESSO")
+    print("Tamanho:", len(resposta.content), "bytes")
+    print("Nome final:", nome_arquivo)
+    print("================================")
+
+    # Entrega o PDF com o nome original
+    return Response(
+        content=resposta.content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{nome_arquivo}"'
+            )
+        }
+    )
+
+
+# ====================================================
+# ROTA DE TESTE
+# ====================================================
+
 @app.get("/pdf-teste")
 async def pdf_teste():
 
@@ -254,6 +376,14 @@ async def pdf_teste():
         "https://www.uniexplorer.com.br/download/"
         "Pacote%20Uni%20Explorer%20-%20Machu%20Picchu%2013P.pdf"
     )
+
+    nome_arquivo = (
+        "Pacote Uni Explorer - Machu Picchu 13P.pdf"
+    )
+
+    print("================================")
+    print("TESTE DE PDF")
+    print("URL:", url_pdf)
 
     try:
 
@@ -278,8 +408,7 @@ async def pdf_teste():
         media_type="application/pdf",
         headers={
             "Content-Disposition": (
-                'attachment; '
-                'filename="Pacote Uni Explorer - Machu Picchu 13P.pdf"'
+                f'attachment; filename="{nome_arquivo}"'
             )
         }
     )
