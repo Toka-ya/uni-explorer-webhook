@@ -21,11 +21,6 @@ async def inicio():
 
 
 def normalizar(texto):
-    """
-    Remove diferenças de maiúsculas/minúsculas,
-    acentos e caracteres especiais.
-    """
-
     texto = unquote(texto)
     texto = texto.lower()
 
@@ -65,10 +60,6 @@ def normalizar(texto):
 
 
 def buscar_pdf(destino):
-    """
-    Consulta a página /download/ e procura
-    o PDF correspondente ao destino informado.
-    """
 
     print("================================")
     print("CONSULTANDO PAGINA DE DOWNLOADS")
@@ -120,11 +111,6 @@ def buscar_pdf(destino):
 
     print("Destino normalizado:", destino_normalizado)
 
-    # ================================================
-    # REGRAS ESPECIAIS
-    # ================================================
-
-    # "Chile" representa o PDF "Chile e Argentina"
     if destino_normalizado == "chile":
         termos_busca = [
             "chile e argentina",
@@ -132,11 +118,6 @@ def buscar_pdf(destino):
         ]
     else:
         termos_busca = [destino_normalizado]
-
-    # ================================================
-    # PRIMEIRA TENTATIVA:
-    # correspondência direta
-    # ================================================
 
     for arquivo in arquivos:
 
@@ -152,11 +133,6 @@ def buscar_pdf(destino):
                 print("================================")
 
                 return arquivo
-
-    # ================================================
-    # SEGUNDA TENTATIVA:
-    # comparação por palavras
-    # ================================================
 
     palavras = destino_normalizado.split()
 
@@ -213,10 +189,6 @@ def buscar_pdf(destino):
     return None
 
 
-# ====================================================
-# ROTA PRINCIPAL
-# ====================================================
-
 @app.post("/webhook")
 async def webhook(request: Request):
 
@@ -242,7 +214,6 @@ async def webhook(request: Request):
             ]
         }
 
-    # Procura o PDF
     pdf = buscar_pdf(destino)
 
     if pdf:
@@ -251,7 +222,6 @@ async def webhook(request: Request):
         print(pdf["nome"])
         print(pdf["url"])
 
-        # Cria uma URL do nosso próprio servidor
         nome_codificado = quote(
             pdf["nome"],
             safe=""
@@ -265,10 +235,6 @@ async def webhook(request: Request):
         print(url_pdf_webhook)
 
         print("================================")
-
-        # ==================================================
-        # FORMATO QUE ESTAVA FUNCIONANDO NO LEADCHAT
-        # ==================================================
 
         return {
             "response": "SUCESSO",
@@ -297,29 +263,21 @@ async def webhook(request: Request):
     }
 
 
-# ====================================================
-# ROTA DINÂMICA PARA ENTREGAR O PDF
-# ====================================================
-
 @app.get("/pdf/{nome_arquivo:path")
 async def entregar_pdf(nome_arquivo: str):
 
-    # Decodifica o nome recebido pela URL
     nome_arquivo = unquote(nome_arquivo)
 
     print("================================")
     print("SOLICITAÇÃO DE PDF")
     print("Arquivo solicitado:", nome_arquivo)
 
-    # Segurança básica:
-    # somente arquivos PDF podem ser entregues.
     if not nome_arquivo.lower().endswith(".pdf"):
 
         return {
             "erro": "Arquivo inválido. Apenas PDFs são permitidos."
         }
 
-    # Monta a URL original no site da Uni Explorer
     url_original = urljoin(
         DOWNLOAD_URL,
         quote(nome_arquivo)
@@ -355,7 +313,6 @@ async def entregar_pdf(nome_arquivo: str):
     print("Nome final:", nome_arquivo)
     print("================================")
 
-    # Entrega o PDF com o nome original
     return Response(
         content=resposta.content,
         media_type="application/pdf",
@@ -366,10 +323,6 @@ async def entregar_pdf(nome_arquivo: str):
         }
     )
 
-
-# ====================================================
-# ROTA DE TESTE
-# ====================================================
 
 @app.get("/pdf-teste")
 async def pdf_teste():
