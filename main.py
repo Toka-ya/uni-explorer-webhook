@@ -241,18 +241,17 @@ async def webhook(request: Request):
 
     if pdf:
 
-        return {
-            "response": "SUCESSO",
-            "messages": [
-                {
-                    "text": (
-                        f"Destino identificado: {destino}\n\n"
-                        f"PDF encontrado: {pdf['nome']}\n\n"
-                        f"Link: {pdf['url']}"
-                    )
-                }
-            ]
-        }
+    return {
+        "response": "SUCESSO",
+        "messages": [
+            {
+                "text": f"Segue o material de {destino}:"
+            },
+            {
+                "fileUrl": pdf["url"]
+            }
+        ]
+    }
 
     return {
         "response": "ERRO",
