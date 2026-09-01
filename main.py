@@ -200,7 +200,10 @@ def buscar_pdf(destino):
     return None
 
 
-# ROTA PRINCIPAL DO WEBHOOK
+# ============================================================
+# WEBHOOK PRINCIPAL
+# ============================================================
+
 @app.post("/webhook")
 async def webhook(request: Request):
 
@@ -276,7 +279,10 @@ async def webhook(request: Request):
     }
 
 
-# ROTA DINÂMICA PARA ENTREGAR O PDF
+# ============================================================
+# ROTA PARA ENTREGA DIRETA DO PDF
+# ============================================================
+
 @app.get("/pdf/{nome_arquivo:path}")
 async def entregar_pdf(nome_arquivo: str):
 
@@ -338,39 +344,59 @@ async def entregar_pdf(nome_arquivo: str):
     )
 
 
-# ROTA /arquivo
-# Aceita GET e POST para compatibilidade com o LeadChat
+# ============================================================
+# ROTA /ARQUIVO
+# ACEITA GET E POST
+# ============================================================
+
 @app.api_route(
     "/arquivo/{codigo}",
     methods=["GET", "POST"]
 )
 async def arquivo_por_codigo(codigo: str):
 
+    # IMPORTANTE:
+    # normalizar transforma:
+    # machu-picchu -> machu picchu
+    # chile-e-argentina -> chile e argentina
+
     codigo_normalizado = normalizar(codigo)
+
+    print("================================")
+    print("SOLICITAÇÃO POR CÓDIGO")
+    print("Código recebido:", codigo)
+    print("Código normalizado:", codigo_normalizado)
+
+    # ========================================================
+    # MAPA DE CÓDIGOS
+    #
+    # As chaves usam o mesmo formato produzido pelo
+    # normalizar(), ou seja, com espaços.
+    # ========================================================
 
     mapa_arquivos = {
 
-        "chile-e-argentina": (
+        "chile e argentina": (
             "Pacote Uni Explorer - Chile e Argentina 8P.pdf"
         ),
 
-        "chile-argentina": (
+        "chile argentina": (
             "Pacote Uni Explorer - Chile e Argentina 8P.pdf"
         ),
 
-        "machu-picchu": (
+        "machu picchu": (
             "Pacote Uni Explorer - Machu Picchu 13P.pdf"
         ),
 
-        "bariloche-e-buenos-aires": (
+        "bariloche e buenos aires": (
             "Pacote Uni Explorer - Bariloche e Buenos Aires 7P.pdf"
         ),
 
-        "bariloche-buenos-aires": (
+        "bariloche buenos aires": (
             "Pacote Uni Explorer - Bariloche e Buenos Aires 7P.pdf"
         ),
 
-        "bonito-pantanal-e-foz": (
+        "bonito pantanal e foz": (
             "Pacote Uni Explorer - Bonito Pantanal e Foz 7P.pdf"
         ),
 
@@ -378,39 +404,39 @@ async def arquivo_por_codigo(codigo: str):
             "Pacote Uni Explorer - Bonito Pantanal e Foz 7P.pdf"
         ),
 
-        "buenos-aires-2p": (
+        "buenos aires 2p": (
             "Pacote Uni Explorer - Buenos aires 2P.pdf"
         ),
 
-        "buenos-aires-3p": (
+        "buenos aires 3p": (
             "Pacote Uni Explorer - Buenos aires 3P.pdf"
         ),
 
-        "circuito-la-plata": (
+        "circuito la plata": (
             "Pacote Uni Explorer - Circuito La Plata 6P.pdf"
         ),
 
-        "montevideu-2p": (
+        "montevideu 2p": (
             "Pacote Uni Explorer - Montevideu 2P.pdf"
         ),
 
-        "montevideu-3p": (
+        "montevideu 3p": (
             "Pacote Uni Explorer - Montevideu 3P.pdf"
         ),
 
-        "pascoa-buenos-aires": (
+        "pascoa buenos aires": (
             "Pacote Uni Explorer - Pascoa Buenos aires 2P.pdf"
         ),
 
-        "pascoa-ilha-do-mel": (
+        "pascoa ilha do mel": (
             "Pacote Uni Explorer - Pascoa Ilha do Mel 2P.pdf"
         ),
 
-        "pascoa-punta": (
+        "pascoa punta": (
             "Pacote uni Explorer - Pascoa Punta 2P.pdf"
         ),
 
-        "reveillon-punta": (
+        "reveillon punta": (
             "Pacote uni Explorer - Reveillon Punta 3P.pdf"
         ),
 
@@ -428,15 +454,14 @@ async def arquivo_por_codigo(codigo: str):
     if not nome_arquivo:
 
         print("CÓDIGO NÃO ENCONTRADO:", codigo)
+        print("Código normalizado:", codigo_normalizado)
+        print("================================")
 
         return {
             "erro": "Código de arquivo não encontrado.",
             "codigo": codigo
         }
 
-    print("================================")
-    print("SOLICITAÇÃO POR CÓDIGO")
-    print("Código:", codigo)
     print("PDF:", nome_arquivo)
 
     url_original = urljoin(
@@ -485,7 +510,10 @@ async def arquivo_por_codigo(codigo: str):
     )
 
 
+# ============================================================
 # ROTA DE TESTE
+# ============================================================
+
 @app.get("/pdf-teste")
 async def pdf_teste():
 
