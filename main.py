@@ -22,6 +22,7 @@ def normalizar(texto):
     Remove diferenças de maiúsculas/minúsculas,
     acentos e caracteres especiais.
     """
+
     texto = unquote(texto)
     texto = texto.lower()
 
@@ -119,20 +120,23 @@ def buscar_pdf(destino):
 
     print("Destino normalizado:", destino_normalizado)
 
-    # ------------------------------------------------
+    # ================================================
     # REGRAS ESPECIAIS
-    # ------------------------------------------------
+    # ================================================
 
-    # Chile também pode representar Chile e Argentina
+    # Chile também representa Chile e Argentina
     if destino_normalizado == "chile":
-        termos_busca = ["chile e argentina", "chile argentina"]
+        termos_busca = [
+            "chile e argentina",
+            "chile argentina"
+        ]
     else:
         termos_busca = [destino_normalizado]
 
-    # ------------------------------------------------
+    # ================================================
     # PRIMEIRA TENTATIVA:
-    # procura correspondência direta
-    # ------------------------------------------------
+    # correspondência direta
+    # ================================================
 
     for arquivo in arquivos:
 
@@ -149,14 +153,13 @@ def buscar_pdf(destino):
 
                 return arquivo
 
-    # ------------------------------------------------
+    # ================================================
     # SEGUNDA TENTATIVA:
-    # compara palavras importantes
-    # ------------------------------------------------
+    # comparação por palavras
+    # ================================================
 
     palavras = destino_normalizado.split()
 
-    # Remove palavras muito genéricas
     palavras_ignoradas = {
         "pacote",
         "uni",
@@ -241,18 +244,22 @@ async def webhook(request: Request):
 
     if pdf:
 
-    return {
-        "response": "SUCESSO",
-        "messages": [
-            {
-                "text": f"Segue o material de {destino}:"
-            },
-            {
-                "fileUrl": pdf["url"],
-                "fileName": pdf["nome"]
-            }
-        ]
-    }
+        print("ENVIANDO RESPOSTA COM PDF:")
+        print(pdf["nome"])
+        print(pdf["url"])
+
+        return {
+            "response": "SUCESSO",
+            "messages": [
+                {
+                    "text": f"Segue o material de {destino}:"
+                },
+                {
+                    "fileUrl": pdf["url"],
+                    "fileName": pdf["nome"]
+                }
+            ]
+        }
 
     return {
         "response": "ERRO",
@@ -260,7 +267,8 @@ async def webhook(request: Request):
             {
                 "text": (
                     f"Destino identificado: {destino}\n\n"
-                    "Não encontrei um PDF correspondente na página de downloads."
+                    "Não encontrei um PDF correspondente "
+                    "na página de downloads."
                 )
             }
         ]
