@@ -423,3 +423,53 @@ async def pdf_teste():
             )
         }
     )
+# ====================================================
+# ROTA DE TESTE DE NOME DO ARQUIVO
+# ====================================================
+
+@app.get("/teste/TESTE.pdf")
+async def teste_nome_arquivo():
+
+    url_pdf = (
+        "https://www.uniexplorer.com.br/download/"
+        "Pacote%20Uni%20Explorer%20-%20Machu%20Picchu%2013P.pdf"
+    )
+
+    print("================================")
+    print("TESTE DE NOME DE ARQUIVO")
+    print("Baixando:", url_pdf)
+
+    try:
+
+        resposta = requests.get(
+            url_pdf,
+            timeout=30,
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            }
+        )
+
+        resposta.raise_for_status()
+
+    except Exception as erro:
+
+        print("ERRO AO BAIXAR PDF:")
+        print(erro)
+
+        return {
+            "erro": str(erro)
+        }
+
+    print("PDF BAIXADO")
+    print("Tamanho:", len(resposta.content))
+    print("Nome pretendido: TESTE.pdf")
+    print("================================")
+
+    return Response(
+        content=resposta.content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="TESTE.pdf"',
+            "Content-Length": str(len(resposta.content))
+        }
+    )
