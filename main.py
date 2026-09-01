@@ -1,3 +1,4 @@
+```python
 from fastapi import FastAPI, Request
 from fastapi.responses import Response
 import requests
@@ -123,6 +124,7 @@ def buscar_pdf(destino):
     # REGRAS ESPECIAIS
     # ================================================
 
+    # "Chile" representa o PDF "Chile e Argentina"
     if destino_normalizado == "chile":
         termos_busca = [
             "chile e argentina",
@@ -240,64 +242,29 @@ async def webhook(request: Request):
             ]
         }
 
-    # Procura o PDF
-    pdf = buscar_pdf(destino)
+    # ==================================================
+    # TESTE TEMPORÁRIO
+    # ==================================================
 
-    if pdf:
-
-        print("PDF ORIGINAL:")
-        print(pdf["nome"])
-        print(pdf["url"])
-
-        # ==================================================
-        # URL DO NOSSO SERVIDOR
-        # ==================================================
-
-        nome_codificado = quote(
-            pdf["nome"],
-            safe=""
-        )
-
-        url_pdf_webhook = (
-            f"{WEBHOOK_BASE_URL}/pdf/{nome_codificado}"
-        )
-
-        print("URL DO PDF PELO WEBHOOK:")
-        print(url_pdf_webhook)
-
-        print("NOME QUE ESTAMOS ENVIANDO:")
-        print(pdf["nome"])
-
-        print("================================")
-
-        # ==================================================
-        # TESTE:
-        # ARQUIVO DENTRO DO OBJETO "file"
-        # ==================================================
-
-        return {
-            "response": "SUCESSO",
-            "messages": [
-                {
-                    "text": f"Segue o material de {destino}:"
-                },
-                {
-                    "file": {
-                        "fileUrl": url_pdf_webhook,
-                        "fileName": pdf["nome"]
-                    }
-                }
-            ]
-        }
+    print("================================")
+    print("TESTE DE NOME DE ARQUIVO")
+    print("Arquivo enviado: TESTE.pdf")
+    print("URL:")
+    print(
+        "https://uni-explorer-webhook.onrender.com/teste/TESTE.pdf"
+    )
+    print("================================")
 
     return {
-        "response": "ERRO",
+        "response": "SUCESSO",
         "messages": [
             {
-                "text": (
-                    f"Destino identificado: {destino}\n\n"
-                    "Não encontrei um PDF correspondente "
-                    "na página de downloads."
+                "text": "TESTE DE NOME DO ARQUIVO"
+            },
+            {
+                "fileUrl": (
+                    "https://uni-explorer-webhook.onrender.com/"
+                    "teste/TESTE.pdf"
                 )
             }
         ]
@@ -311,20 +278,22 @@ async def webhook(request: Request):
 @app.get("/pdf/{nome_arquivo:path}")
 async def entregar_pdf(nome_arquivo: str):
 
+    # Decodifica o nome recebido pela URL
     nome_arquivo = unquote(nome_arquivo)
 
     print("================================")
     print("SOLICITAÇÃO DE PDF")
     print("Arquivo solicitado:", nome_arquivo)
 
-    # Segurança básica
+    # Segurança básica:
+    # somente arquivos PDF podem ser entregues.
     if not nome_arquivo.lower().endswith(".pdf"):
 
         return {
             "erro": "Arquivo inválido. Apenas PDFs são permitidos."
         }
 
-    # Monta a URL original
+    # Monta a URL original no site da Uni Explorer
     url_original = urljoin(
         DOWNLOAD_URL,
         quote(nome_arquivo)
@@ -360,11 +329,7 @@ async def entregar_pdf(nome_arquivo: str):
     print("Nome final:", nome_arquivo)
     print("================================")
 
-    # ==================================================
-    # ENTREGA DO PDF
-    # NÃO ALTERAMOS ESTA PARTE
-    # ==================================================
-
+    # Entrega o PDF com o nome original
     return Response(
         content=resposta.content,
         media_type="application/pdf",
@@ -377,7 +342,59 @@ async def entregar_pdf(nome_arquivo: str):
 
 
 # ====================================================
-# ROTA DE TESTE
+# ROTA DE TESTE DE NOME DO ARQUIVO
+# ====================================================
+
+@app.get("/teste/TESTE.pdf")
+async def teste_nome_arquivo():
+
+    url_pdf = (
+        "https://www.uniexplorer.com.br/download/"
+        "Pacote%20Uni%20Explorer%20-%20Machu%20Picchu%2013P.pdf"
+    )
+
+    print("================================")
+    print("TESTE DE NOME DE ARQUIVO")
+    print("Baixando:", url_pdf)
+
+    try:
+
+        resposta = requests.get(
+            url_pdf,
+            timeout=30,
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            }
+        )
+
+        resposta.raise_for_status()
+
+    except Exception as erro:
+
+        print("ERRO AO BAIXAR PDF:")
+        print(erro)
+
+        return {
+            "erro": str(erro)
+        }
+
+    print("PDF BAIXADO COM SUCESSO")
+    print("Tamanho:", len(resposta.content), "bytes")
+    print("Nome pretendido: TESTE.pdf")
+    print("================================")
+
+    return Response(
+        content=resposta.content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="TESTE.pdf"',
+            "Content-Length": str(len(resposta.content))
+        }
+    )
+
+
+# ====================================================
+# ROTA DE TESTE ORIGINAL
 # ====================================================
 
 @app.get("/pdf-teste")
@@ -423,53 +440,4 @@ async def pdf_teste():
             )
         }
     )
-# ====================================================
-# ROTA DE TESTE DE NOME DO ARQUIVO
-# ====================================================
-
-@app.get("/teste/TESTE.pdf")
-async def teste_nome_arquivo():
-
-    url_pdf = (
-        "https://www.uniexplorer.com.br/download/"
-        "Pacote%20Uni%20Explorer%20-%20Machu%20Picchu%2013P.pdf"
-    )
-
-    print("================================")
-    print("TESTE DE NOME DE ARQUIVO")
-    print("Baixando:", url_pdf)
-
-    try:
-
-        resposta = requests.get(
-            url_pdf,
-            timeout=30,
-            headers={
-                "User-Agent": "Mozilla/5.0"
-            }
-        )
-
-        resposta.raise_for_status()
-
-    except Exception as erro:
-
-        print("ERRO AO BAIXAR PDF:")
-        print(erro)
-
-        return {
-            "erro": str(erro)
-        }
-
-    print("PDF BAIXADO")
-    print("Tamanho:", len(resposta.content))
-    print("Nome pretendido: TESTE.pdf")
-    print("================================")
-
-    return Response(
-        content=resposta.content,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": 'attachment; filename="TESTE.pdf"',
-            "Content-Length": str(len(resposta.content))
-        }
-    )
+```
