@@ -856,4 +856,3 @@ async def pdf_teste():
             )
         }
     )
-```
