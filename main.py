@@ -21,11 +21,16 @@ async def webhook(request: Request):
     print(dados)
     print("================================")
 
+    # Captura a última resposta enviada pelo cliente
+    destino = dados.get("lastContactMessage")
+
+    print("DESTINO IDENTIFICADO:", destino)
+
     return {
         "response": "SUCESSO",
         "messages": [
             {
-                "text": "Webhook da Uni Explorer recebeu os dados com sucesso!"
+                "text": f"Destino identificado: {destino}"
             }
         ]
     }
