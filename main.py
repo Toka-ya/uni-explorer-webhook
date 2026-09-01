@@ -123,7 +123,6 @@ def buscar_pdf(destino):
     # REGRAS ESPECIAIS
     # ================================================
 
-    # "Chile" representa o PDF "Chile e Argentina"
     if destino_normalizado == "chile":
         termos_busca = [
             "chile e argentina",
@@ -250,10 +249,10 @@ async def webhook(request: Request):
         print(pdf["nome"])
         print(pdf["url"])
 
-        # Cria uma URL do nosso próprio servidor.
-        #
-        # quote() transforma espaços, acentos etc.
-        # em uma URL segura.
+        # ==================================================
+        # URL DO NOSSO SERVIDOR
+        # ==================================================
+
         nome_codificado = quote(
             pdf["nome"],
             safe=""
@@ -266,7 +265,15 @@ async def webhook(request: Request):
         print("URL DO PDF PELO WEBHOOK:")
         print(url_pdf_webhook)
 
+        print("NOME QUE ESTAMOS ENVIANDO:")
+        print(pdf["nome"])
+
         print("================================")
+
+        # ==================================================
+        # TESTE:
+        # ARQUIVO DENTRO DO OBJETO "file"
+        # ==================================================
 
         return {
             "response": "SUCESSO",
@@ -275,8 +282,10 @@ async def webhook(request: Request):
                     "text": f"Segue o material de {destino}:"
                 },
                 {
-                    "fileUrl": url_pdf_webhook,
-                    "fileName": pdf["nome"]
+                    "file": {
+                        "fileUrl": url_pdf_webhook,
+                        "fileName": pdf["nome"]
+                    }
                 }
             ]
         }
@@ -302,22 +311,20 @@ async def webhook(request: Request):
 @app.get("/pdf/{nome_arquivo:path}")
 async def entregar_pdf(nome_arquivo: str):
 
-    # Decodifica o nome recebido pela URL
     nome_arquivo = unquote(nome_arquivo)
 
     print("================================")
     print("SOLICITAÇÃO DE PDF")
     print("Arquivo solicitado:", nome_arquivo)
 
-    # Segurança básica:
-    # somente arquivos PDF podem ser entregues.
+    # Segurança básica
     if not nome_arquivo.lower().endswith(".pdf"):
 
         return {
             "erro": "Arquivo inválido. Apenas PDFs são permitidos."
         }
 
-    # Monta a URL original no site da Uni Explorer
+    # Monta a URL original
     url_original = urljoin(
         DOWNLOAD_URL,
         quote(nome_arquivo)
@@ -353,7 +360,11 @@ async def entregar_pdf(nome_arquivo: str):
     print("Nome final:", nome_arquivo)
     print("================================")
 
-    # Entrega o PDF com o nome original
+    # ==================================================
+    # ENTREGA DO PDF
+    # NÃO ALTERAMOS ESTA PARTE
+    # ==================================================
+
     return Response(
         content=resposta.content,
         media_type="application/pdf",
