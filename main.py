@@ -1,4 +1,3 @@
-```python
 from fastapi import FastAPI, Request
 from fastapi.responses import Response
 import requests
