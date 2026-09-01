@@ -242,29 +242,55 @@ async def webhook(request: Request):
             ]
         }
 
-    # ==================================================
-    # TESTE TEMPORÁRIO
-    # ==================================================
+    # Procura o PDF
+    pdf = buscar_pdf(destino)
 
-    print("================================")
-    print("TESTE DE NOME DE ARQUIVO")
-    print("Arquivo enviado: TESTE.pdf")
-    print("URL:")
-    print(
-        "https://uni-explorer-webhook.onrender.com/teste/TESTE.pdf"
-    )
-    print("================================")
+    if pdf:
+
+        print("PDF ORIGINAL:")
+        print(pdf["nome"])
+        print(pdf["url"])
+
+        # Cria uma URL do nosso próprio servidor
+        nome_codificado = quote(
+            pdf["nome"],
+            safe=""
+        )
+
+        url_pdf_webhook = (
+            f"{WEBHOOK_BASE_URL}/pdf/{nome_codificado}"
+        )
+
+        print("URL DO PDF PELO WEBHOOK:")
+        print(url_pdf_webhook)
+
+        print("================================")
+
+        # ==================================================
+        # FORMATO QUE ESTAVA FUNCIONANDO NO LEADCHAT
+        # ==================================================
+
+        return {
+            "response": "SUCESSO",
+            "messages": [
+                {
+                    "text": f"Segue o material de {destino}:"
+                },
+                {
+                    "fileUrl": url_pdf_webhook,
+                    "fileName": pdf["nome"]
+                }
+            ]
+        }
 
     return {
-        "response": "SUCESSO",
+        "response": "ERRO",
         "messages": [
             {
-                "text": "TESTE DE NOME DO ARQUIVO"
-            },
-            {
-                "fileUrl": (
-                    "https://uni-explorer-webhook.onrender.com/"
-                    "teste/TESTE.pdf"
+                "text": (
+                    f"Destino identificado: {destino}\n\n"
+                    "Não encontrei um PDF correspondente "
+                    "na página de downloads."
                 )
             }
         ]
@@ -275,7 +301,7 @@ async def webhook(request: Request):
 # ROTA DINÂMICA PARA ENTREGAR O PDF
 # ====================================================
 
-@app.get("/pdf/{nome_arquivo:path}")
+@app.get("/pdf/{nome_arquivo:path")
 async def entregar_pdf(nome_arquivo: str):
 
     # Decodifica o nome recebido pela URL
@@ -342,59 +368,7 @@ async def entregar_pdf(nome_arquivo: str):
 
 
 # ====================================================
-# ROTA DE TESTE DE NOME DO ARQUIVO
-# ====================================================
-
-@app.get("/teste/TESTE.pdf")
-async def teste_nome_arquivo():
-
-    url_pdf = (
-        "https://www.uniexplorer.com.br/download/"
-        "Pacote%20Uni%20Explorer%20-%20Machu%20Picchu%2013P.pdf"
-    )
-
-    print("================================")
-    print("TESTE DE NOME DE ARQUIVO")
-    print("Baixando:", url_pdf)
-
-    try:
-
-        resposta = requests.get(
-            url_pdf,
-            timeout=30,
-            headers={
-                "User-Agent": "Mozilla/5.0"
-            }
-        )
-
-        resposta.raise_for_status()
-
-    except Exception as erro:
-
-        print("ERRO AO BAIXAR PDF:")
-        print(erro)
-
-        return {
-            "erro": str(erro)
-        }
-
-    print("PDF BAIXADO COM SUCESSO")
-    print("Tamanho:", len(resposta.content), "bytes")
-    print("Nome pretendido: TESTE.pdf")
-    print("================================")
-
-    return Response(
-        content=resposta.content,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": 'attachment; filename="TESTE.pdf"',
-            "Content-Length": str(len(resposta.content))
-        }
-    )
-
-
-# ====================================================
-# ROTA DE TESTE ORIGINAL
+# ROTA DE TESTE
 # ====================================================
 
 @app.get("/pdf-teste")
